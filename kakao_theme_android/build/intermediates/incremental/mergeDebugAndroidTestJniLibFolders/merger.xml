@@ -1,2 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<merger version="3"><dataSet config="androidTest" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/src/androidTest/jniLibs"/></dataSet><dataSet config="androidTestDebug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/src/androidTestDebug/jniLibs"/></dataSet></merger>

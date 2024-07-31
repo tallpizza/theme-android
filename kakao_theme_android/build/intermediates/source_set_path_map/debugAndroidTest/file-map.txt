@@ -1,4 +1,0 @@
-com.kakao.talk.theme.apeach.test-androidTest-0 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/build/generated/res/resValues/androidTest/debug
-com.kakao.talk.theme.apeach.test-mergeDebugAndroidTestResources-1 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/merged.dir
-com.kakao.talk.theme.apeach.test-mergeDebugAndroidTestResources-2 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/stripped.dir
-com.kakao.talk.theme.apeach.test-merged_res-3 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/build/intermediates/merged_res/debugAndroidTest

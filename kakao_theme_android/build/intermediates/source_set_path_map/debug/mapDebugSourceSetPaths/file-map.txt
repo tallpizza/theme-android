@@ -1,9 +1,0 @@
-com.kakao.talk.theme.apeach-pngs-0 /app/build/generated/res/pngs/debug
-com.kakao.talk.theme.apeach-resValues-1 /app/build/generated/res/resValues/debug
-com.kakao.talk.theme.apeach-mergeDebugResources-2 /app/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
-com.kakao.talk.theme.apeach-mergeDebugResources-3 /app/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
-com.kakao.talk.theme.apeach-debug-4 /app/build/intermediates/merged_res/debug/mergeDebugResources
-com.kakao.talk.theme.apeach-debug-5 /app/src/debug/res
-com.kakao.talk.theme.apeach-main-6 /app/src/main/res
-com.kakao.talk.theme.apeach-main-7 /app/src/main/theme
-com.kakao.talk.theme.apeach-main-8 /app/src/main/theme-adv

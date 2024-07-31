@@ -1,0 +1,9 @@
+com.kakao.talk.theme.apeach-pngs-0 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/build/generated/res/pngs/debug
+com.kakao.talk.theme.apeach-resValues-1 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/build/generated/res/resValues/debug
+com.kakao.talk.theme.apeach-mergeDebugResources-2 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+com.kakao.talk.theme.apeach-mergeDebugResources-3 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+com.kakao.talk.theme.apeach-merged_res-4 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/build/intermediates/merged_res/debug
+com.kakao.talk.theme.apeach-debug-5 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/src/debug/res
+com.kakao.talk.theme.apeach-main-6 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/src/main/res
+com.kakao.talk.theme.apeach-main-7 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/src/main/theme
+com.kakao.talk.theme.apeach-main-8 /Users/tallpizza/Downloads/Android_Sample_Theme_230925/apeach-10.3.5-source/src/main/theme-adv

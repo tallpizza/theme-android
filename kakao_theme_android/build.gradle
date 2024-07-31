@@ -21,6 +21,12 @@ apply plugin: 'kotlin-android'
 android {
     compileSdkVersion 34
     buildToolsVersion "34.0.0"
+    
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "ONO-Theme-${variant.versionName}.apk"
+        }
+    }
 
     defaultConfig {
         minSdkVersion 24

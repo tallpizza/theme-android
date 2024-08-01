@@ -1,4 +1,5 @@
 /apk_output
+/venv
 
 # Built application files
 *.apk

@@ -1,0 +1,26 @@
+# 빌드 시 불필요한 파일/디렉터리 제외
+**/.DS_Store
+**/.git
+**/.gitignore
+**/.vscode
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/db.sqlite3
+**/*.log
+
+# 개발 환경 설정 파일 제외
+**/.env
+
+# Gradle files
+.gradle/
+build/
+
+venv/
+
+# 특정 빌드나 실행 스크립트 제외
+docker-compose.override.yml
+run.sh
+apk_output/

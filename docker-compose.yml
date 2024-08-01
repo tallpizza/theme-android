@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  python:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    ports:
+      - "8000:8000"
+    volumes:
+      - shared_data:/app/shared_data
+
+  android:
+    container_name: android-container
+    build:
+      context: .
+      dockerfile: Dockerfile.android
+    volumes:
+      - shared_data:/app/kakao_theme_android
+
+volumes:
+  shared_data:

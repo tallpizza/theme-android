@@ -1,8 +1,7 @@
+import asyncio
 from fastapi import FastAPI, File, Form, UploadFile, BackgroundTasks
 from fastapi.responses import FileResponse
-import shutil
 import os
-import subprocess
 import aiofiles
 from typing import Optional
 import logging
@@ -10,14 +9,14 @@ import xml.etree.ElementTree as ET
 
 
 app = FastAPI()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-theme_dir = os.getenv("THEME_DIR", "./kakao_theme_android/src/main/res/drawable-xxhdpi")
-colors_xml_path = os.getenv(
-    "COLORS_XML_PATH", "./kakao_theme_android/src/main/theme/values/colors.xml"
-)
+theme_dir = "./kakao_theme_android/src/main/theme/drawable-xxhdpi"
+colors_xml_path = "./kakao_theme_android/src/main/theme/values/colors.xml"
 
 
-@app.post("/create_theme")
+@app.post("/upload")
 async def create_theme(
     background_tasks: BackgroundTasks,
     themeName: Optional[str] = Form(None),
@@ -110,7 +109,7 @@ async def create_theme(
 
     # 이미지 파일 저장
     file_names = [
-        "commonIcoTheme.png",
+        # "commonIcoTheme.png",
         "theme_background_image.png",
         "theme_maintab_ico_friends_image.png",
         "theme_maintab_ico_friends_focused_image.png",
@@ -143,7 +142,7 @@ async def create_theme(
     ]
 
     image_files = [
-        kakaoIcon,
+        # kakaoIcon, #TODO: mipmap으로 변환 필요
         tabsBg,
         tabsFrends,
         tabsFrendsSelected,
@@ -185,6 +184,8 @@ async def create_theme(
             content = await image_file.read()
             async with aiofiles.open(file_path, "wb") as out_file:
                 await out_file.write(content)
+
+    logger.info("theme file saved")
 
     # colors.xml 파일 수정
     update_color("theme_header_color", headerColor)
@@ -239,11 +240,9 @@ async def create_theme(
     update_color("theme_chatroom_input_bar_send_icon_color", sendIconColor)
     update_color("theme_chatroom_input_bar_menu_icon_color", menuButtonColor)
 
-    # APK 빌드
-    build_apk()
+    logger.info("update theme colors completed")
 
-    # APK 파일 경로
-    apk_path = "/app/build/outputs/apk/debug/ONO-theme.apk"
+    apk_path = await build_apk()
 
     # APK 파일 전송
     return FileResponse(apk_path, filename="custom_theme.apk")
@@ -257,41 +256,50 @@ def update_color(color_name, new_value):
     # 'name' 속성으로 색상 요소 찾기
     for color_element in root.findall(".//color[@name='{}']".format(color_name)):
         # 새 값으로 업데이트
-        color_element.text = new_value
+        if new_value is not None:
+            color_element.text = new_value
 
     # 변경사항 저장
     tree.write(colors_xml_path, encoding="utf-8", xml_declaration=True)
 
 
-def build_apk():
-
+async def build_apk():
     try:
-        result = subprocess.run(
-            [
-                "docker",
-                "exec",
-                "android-container",
-                "/app/kakao_theme_android/gradlew",
-                "assembleDebug",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
+        process = await asyncio.create_subprocess_exec(
+            "./gradlew",
+            "assembleDebug",
+            cwd="/app/kakao_theme_android",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
-        # 빌드 성공, APK 파일 위치
-        apk_path = "/app/kakao_theme_android/app/build/outputs/apk/debug/ONO-theme.apk"
-        logging.info("Build successful")
-        logging.info("Build output: %s", result.stdout)
-        return {
-            "message": "Build successful",
-            "build_output": result.stdout,
-            "apk_path": apk_path,
-        }
-    except subprocess.CalledProcessError as e:
-        # 빌드 실패
-        logging.error("Build failed")
-        logging.error("Error output: %s", e.stderr)
-        return {"message": "Build failed", "error": e.stderr, "exit_code": e.returncode}
+
+        async def log_stream(stream, log_func):
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                log_func(line.decode().strip())
+
+        await asyncio.gather(
+            log_stream(process.stdout, logger.info),
+            log_stream(process.stderr, logger.error),
+        )
+
+        await process.wait()
+
+        if process.returncode == 0:
+            apk_path = (
+                "/app/kakao_theme_android/app/build/outputs/apk/debug/ONO-theme.apk"
+            )
+            logger.info("Build successful")
+            return apk_path
+        else:
+            logger.error("Build failed")
+            raise Exception("Build process failed")
+
+    except Exception as e:
+        logger.exception("An error occurred during the build process")
+        raise Exception(f"Build error: {str(e)}")
 
 
 if __name__ == "__main__":

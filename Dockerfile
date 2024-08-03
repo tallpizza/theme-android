@@ -34,6 +34,8 @@ RUN ./gradlew build --no-daemon
 COPY . /app
 RUN chmod +x /app/kakao_theme_android/gradlew
 
+WORKDIR /app
+
 EXPOSE 8000
 
 CMD ["python3", "main.py"]

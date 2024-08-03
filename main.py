@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 mipmap_dir = "./kakao_theme_android/src/main"
 theme_dir = "./kakao_theme_android/src/main/theme/drawable-xxhdpi"
 colors_xml_path = "./kakao_theme_android/src/main/theme/values/colors.xml"
+strings_xml_path = "./kakao_theme_android/src/main/theme/values/strings.xml"
 
 
 @app.post("/upload")
@@ -211,6 +212,9 @@ async def create_theme(
 
     logger.info("theme file saved")
 
+    update_text("theme_title", themeName)
+    update_text("app_name", themeName)
+
     update_color("theme_header_color", headerColor)
     update_color("theme_section_title_color", "#007FFF")  # input 필요
     update_color("theme_title_color", nameColor)  # input 필요
@@ -298,6 +302,18 @@ def create_mipmaps(image_bytes, size_paths):
         resized_image.save(path)
 
         print(f"Saved mipmap {size}x{size} to: {path}")
+
+
+def update_text(text_name, new_value):
+    # XML 파일 파싱
+    tree = ET.parse(strings_xml_path)
+    root = tree.getroot()
+
+    for color_element in root.findall(".//string[@name='{}']".format(text_name)):
+        if new_value is not None:
+            color_element.text = str(new_value)
+
+    tree.write(strings_xml_path, encoding="utf-8", xml_declaration=True)
 
 
 def update_color(color_name, new_value):

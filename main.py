@@ -8,11 +8,21 @@ from typing import Optional, Union
 import logging
 import xml.etree.ElementTree as ET
 from PIL import Image, ImageDraw
+from fastapi.middleware.cors import CORSMiddleware
 
 
 app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 모든 도메인 허용용
+    allow_credentials=True,
+    allow_methods=["*"],  # 모든 HTTP 메소드 허용
+    allow_headers=["*"],  # 모든 HTTP 헤더 허용
+)
+
 
 mipmap_dir = "./kakao_theme_android/src/main"
 theme_dir = "./kakao_theme_android/src/main/theme/drawable-xxhdpi"
@@ -306,7 +316,7 @@ def create_mipmaps(image_bytes, size_paths):
         # 이미지 저장
         resized_image.save(path)
 
-        print(f"Saved mipmap {size}x{size} to: {path}")
+        logger.info(f"Saved mipmap {size}x{size} to: {path}")
 
 
 def update_text(text_name, new_value):

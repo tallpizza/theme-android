@@ -3,9 +3,18 @@ from fastapi.responses import FileResponse
 import shutil
 import os
 import subprocess
+import aiofiles
 from typing import Optional
+import logging
+import xml.etree.ElementTree as ET
+
 
 app = FastAPI()
+
+theme_dir = os.getenv("THEME_DIR", "./kakao_theme_android/src/main/res/drawable-xxhdpi")
+colors_xml_path = os.getenv(
+    "COLORS_XML_PATH", "./kakao_theme_android/src/main/theme/values/colors.xml"
+)
 
 
 @app.post("/create_theme")
@@ -97,20 +106,138 @@ async def create_theme(
     alertShareTextColor: Optional[str] = Form(None),
 ):
     # 테마 디렉토리 생성
-    theme_dir = f"/app/kakao_theme_project/app/src/main/res/drawable-xxhdpi"
     os.makedirs(theme_dir, exist_ok=True)
 
     # 이미지 파일 저장
-    image_files = {}
+    file_names = [
+        "commonIcoTheme.png",
+        "theme_background_image.png",
+        "theme_maintab_ico_friends_image.png",
+        "theme_maintab_ico_friends_focused_image.png",
+        "theme_maintab_ico_chats_image.png",
+        "theme_maintab_ico_chats_focused_image.png",
+        "theme_maintab_ico_openchat_image.png",
+        "theme_maintab_ico_openchat_focused_image.png",
+        "theme_maintab_ico_shopping_image.png",
+        "theme_maintab_ico_shopping_focused_image.png",
+        "theme_maintab_ico_more_image.png",
+        "theme_maintab_ico_more_focused_image.png",
+        "theme_background_image.png",  # 안드로이드에선 탭이랑 메인이랑 차이가없음
+        "theme_find_add_friend_button_image.png",  # pressed필요
+        "theme_profile_01_image.png",
+        "theme_chatroom_background_image.png",
+        "theme_chatroom_bubble_me_01_image.9.png",  # 9.png로 변환필요
+        "theme_chatroom_bubble_me_02_image.9.png",  # 9.png로 변환필요
+        "theme_chatroom_bubble_you_01_image.9.png",  # 9.png로 변환필요
+        "theme_chatroom_bubble_you_02_image.9.png",  # 9.png로 변환필요
+        "theme_passcode_background_image.png",
+        "theme_passcode_01_image.png",
+        "theme_passcode_02_image.png",
+        "theme_passcode_03_image.png",
+        "theme_passcode_04_image.png",
+        "theme_passcode_01_checked_image.png",
+        "theme_passcode_02_checked_image.png",
+        "theme_passcode_03_checked_image.png",
+        "theme_passcode_04_checked_image.png",
+        "passcodeKeypadPressed@3x.png",  # 안드로이드에선 사용안함
+    ]
 
-    for name, file in image_files.items():
-        if file:
-            with open(f"{theme_dir}/{name}.png", "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
+    image_files = [
+        kakaoIcon,
+        tabsBg,
+        tabsFrends,
+        tabsFrendsSelected,
+        tabsChats,
+        tabsChatsSelected,
+        tabsOpenChats,
+        tabsOpenChatsSelected,
+        tabsShopping,
+        tabsShoppingSelected,
+        tabsMore,
+        tabsMoreSelected,
+        mainBg,
+        findFriendButton,
+        defaultProfile,
+        chatRoomBg,
+        bubbleSend1,
+        bubbleSend1Selected,
+        bubbleSend2,
+        bubbleSend2Selected,
+        bubbleReceive1,
+        bubbleReceive1Selected,
+        bubbleReceive2,
+        bubbleReceive2Selected,
+        passcodeBg,
+        passcodeImage1,
+        passcodeImage2,
+        passcodeImage3,
+        passcodeImage4,
+        passcodeImage1Selected,
+        passcodeImage2Selected,
+        passcodeImage3Selected,
+        passcodeImage4Selected,
+        keyPadPressedImage,
+    ]
+
+    for image_file, file_name in zip(image_files, file_names):
+        if image_file is not None:
+            file_path = os.path.join(theme_dir, file_name)
+            content = await image_file.read()
+            async with aiofiles.open(file_path, "wb") as out_file:
+                await out_file.write(content)
 
     # colors.xml 파일 수정
-    colors_xml_path = "/app/kakao_theme_project/src/main/theme/values/colors.xml"
-    update_colors_xml(colors_xml_path, tabsBgColor=tabsBgColor)  # 다른 색상들도 추가
+    update_color("theme_header_color", headerColor)
+    update_color("theme_section_title_color", "007FFF")  # input 필요
+    update_color("theme_title_color", nameColor)  # input 필요
+    update_color("theme_title_pressed_color", namePressedColor)
+    update_color("theme_paragraph_color", paragraphColor)
+    update_color("theme_paragraph_pressed_color", paragraphPressedColor)
+    update_color("theme_description_color", descriptionColor)
+    update_color("theme_description_pressed_color", descriptionPressedColor)
+    update_color("theme_feature_primary_color", serviceBtnColor)
+    update_color("theme_feature_primary_pressed_color", serviceBtnColor)  # input필요
+
+    update_color("theme_background_color", mainBackgroundColor)
+    update_color("theme_chatroom_background_color", chatRoomBgColor)
+    update_color("theme_passcode_background_color", passcodeBgColor)
+
+    update_color("theme_body_cell_border_color", borderColor)
+
+    update_color("theme_body_cell_color", listBgColor)
+    update_color("theme_body_cell_pressed_color", listBgPressedColor)
+
+    update_color("theme_body_secondary_cell_color", subBgColor)
+    update_color("theme_maintab_cell_color", tabsBgColor)
+    update_color("theme_tab_bannerbadge_background_color", bottomBannerBgColor)
+
+    update_color("theme_direct_share_color", alertShareTextColor)
+    update_color("theme_direct_share_button_color", alertShareNameColor)
+    update_color("theme_direct_share_background_color", alertShareBgColor)
+
+    update_color("theme_notification_color", alertMessageTextColor)
+    update_color("theme_notification_background_color", alertMessageBgColor)
+    update_color(
+        "theme_notification_background_pressed_color", alertMessageBgColor
+    )  # input 없음
+
+    update_color("theme_passcode_color", passcodeTitleColor)
+    update_color("theme_passcode_keypad_color", keyPadTextColor)
+    update_color("theme_passcode_keypad_pressed_color", keyPadTextColor)
+    update_color("theme_passcode_keypad_background_color", keyPadBgColor)
+    update_color(
+        "theme_passcode_keypad_pressed_background_color", keyPadBgColor
+    )  # input 필요
+    update_color("theme_passcode_pattern_line_color", keyPadTextColor)  # input 필요
+
+    update_color("theme_chatroom_bubble_me_color", textColor)
+    update_color("theme_chatroom_bubble_you_color", receiveTextColor)
+    update_color("theme_chatroom_unread_count_color", unReadColor)
+
+    update_color("theme_chatroom_input_bar_background_color", inputBarBgColor)
+    update_color("theme_chatroom_input_bar_send_button_color", sendBgColor)
+    update_color("theme_chatroom_input_bar_send_icon_color", sendIconColor)
+    update_color("theme_chatroom_input_bar_menu_icon_color", menuButtonColor)
 
     # APK 빌드
     build_apk()
@@ -122,32 +249,49 @@ async def create_theme(
     return FileResponse(apk_path, filename="custom_theme.apk")
 
 
-def update_colors_xml(file_path, **colors):
-    # XML 파일 수정 로직 구현
-    # 예: colors 딕셔너리의 키-값 쌍을 사용하여 colors.xml 파일 업데이트
-    pass
+def update_color(color_name, new_value):
+    # XML 파일 파싱
+    tree = ET.parse(colors_xml_path)
+    root = tree.getroot()
+
+    # 'name' 속성으로 색상 요소 찾기
+    for color_element in root.findall(".//color[@name='{}']".format(color_name)):
+        # 새 값으로 업데이트
+        color_element.text = new_value
+
+    # 변경사항 저장
+    tree.write(colors_xml_path, encoding="utf-8", xml_declaration=True)
 
 
 def build_apk():
-    # APK 빌드 명령 실행
-    result = subprocess.run(
-        ["./gradlew", "assembleDebug"],
-        cwd="/app/kakao_theme_project",
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        print(f"Build failed: {result.stderr}")
-        raise Exception("APK build failed")
 
-    # 새로운 APK 경로
-    apk_path = "/app/build/outputs/apk/debug/ONO-theme.apk"
-
-    # APK 파일이 실제로 생성되었는지 확인
-    if not os.path.exists(apk_path):
-        raise FileNotFoundError(f"APK file not found at {apk_path}")
-
-    return apk_path
+    try:
+        result = subprocess.run(
+            [
+                "docker",
+                "exec",
+                "android-container",
+                "/app/kakao_theme_android/gradlew",
+                "assembleDebug",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        # 빌드 성공, APK 파일 위치
+        apk_path = "/app/kakao_theme_android/app/build/outputs/apk/debug/ONO-theme.apk"
+        logging.info("Build successful")
+        logging.info("Build output: %s", result.stdout)
+        return {
+            "message": "Build successful",
+            "build_output": result.stdout,
+            "apk_path": apk_path,
+        }
+    except subprocess.CalledProcessError as e:
+        # 빌드 실패
+        logging.error("Build failed")
+        logging.error("Error output: %s", e.stderr)
+        return {"message": "Build failed", "error": e.stderr, "exit_code": e.returncode}
 
 
 if __name__ == "__main__":

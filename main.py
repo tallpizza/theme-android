@@ -14,6 +14,7 @@ app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+mipmap_dir = "./kakao_theme_android/src/main"
 theme_dir = "./kakao_theme_android/src/main/theme/drawable-xxhdpi"
 colors_xml_path = "./kakao_theme_android/src/main/theme/values/colors.xml"
 
@@ -111,7 +112,7 @@ async def create_theme(
 
     # 이미지 파일 저장
     file_names = [
-        # "commonIcoTheme.png",
+        "commonIcoTheme.png",
         "theme_background_image.png",
         "theme_maintab_ico_friends_image.png",
         "theme_maintab_ico_friends_focused_image.png",
@@ -144,7 +145,7 @@ async def create_theme(
     ]
 
     image_files = [
-        # kakaoIcon, #TODO: mipmap으로 변환 필요
+        kakaoIcon,  # TODO: mipmap으로 변환 필요
         tabsBg,
         tabsFrends,
         tabsFrendsSelected,
@@ -193,6 +194,17 @@ async def create_theme(
             elif file_name == "theme_chatroom_bubble_you_02_image.9.png":
                 location = receiveEdgeinsets2
                 content = create_nine_patch(content, location)
+            elif file_name == "commonIcoTheme.png":
+                size_paths = {
+                    72: mipmap_dir + "/res/mipmap-hdpi/ic_launcher.png",
+                    48: mipmap_dir + "/res/mipmap-mdpi/ic_launcher.png",
+                    96: mipmap_dir + "/res/mipmap-xhdpi/ic_launcher.png",
+                    144: mipmap_dir + "/res/mipmap-xxhdpi/ic_launcher.png",
+                    192: mipmap_dir + "/res/mipmap-xxxhdpi/ic_launcher.png",
+                    512: mipmap_dir + "/ic_launcher-web.png",
+                }
+                create_mipmaps(content, size_paths)
+                continue
 
             async with aiofiles.open(file_path, "wb") as out_file:
                 await out_file.write(content)
@@ -267,6 +279,25 @@ async def create_theme(
 
     # APK 파일 전송
     return FileResponse(apk_path, filename="custom_theme.apk")
+
+
+def create_mipmaps(image_bytes, size_paths):
+    # 바이트 데이터로부터 이미지 열기
+    original_image = Image.open(io.BytesIO(image_bytes))
+
+    # 각 크기별로 mipmap 생성 및 지정된 경로에 저장
+    for size, path in size_paths.items():
+        # 이미지 리사이즈
+        resized_image = original_image.copy()
+        resized_image.thumbnail((size, size))
+
+        # 저장 경로의 디렉토리가 없으면 생성
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        # 이미지 저장
+        resized_image.save(path)
+
+        print(f"Saved mipmap {size}x{size} to: {path}")
 
 
 def update_color(color_name, new_value):

@@ -1,6 +1,10 @@
 /apk_output
 /venv
 
+__pycache__/
+*.py[cod]
+*$py.class
+
 # Built application files
 *.apk
 *.ap_

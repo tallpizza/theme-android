@@ -3,7 +3,7 @@ from fastapi import FastAPI, File, Form, UploadFile, BackgroundTasks
 from fastapi.responses import FileResponse
 import os
 import aiofiles
-from typing import Optional
+from typing import Optional, Union
 import logging
 import xml.etree.ElementTree as ET
 
@@ -187,9 +187,8 @@ async def create_theme(
 
     logger.info("theme file saved")
 
-    # colors.xml 파일 수정
     update_color("theme_header_color", headerColor)
-    update_color("theme_section_title_color", "007FFF")  # input 필요
+    update_color("theme_section_title_color", "#007FFF")  # input 필요
     update_color("theme_title_color", nameColor)  # input 필요
     update_color("theme_title_pressed_color", namePressedColor)
     update_color("theme_paragraph_color", paragraphColor)
@@ -203,13 +202,22 @@ async def create_theme(
     update_color("theme_chatroom_background_color", chatRoomBgColor)
     update_color("theme_passcode_background_color", passcodeBgColor)
 
-    update_color("theme_body_cell_border_color", borderColor)
+    update_color(
+        "theme_body_cell_border_color",
+        combine_color_and_opacity(borderColor, (borderOpacity)),
+    )
 
-    update_color("theme_body_cell_color", listBgColor)
+    update_color(
+        "theme_body_cell_color",
+        combine_color_and_opacity(listBgColor, (listBgOpacity)),
+    )
     update_color("theme_body_cell_pressed_color", listBgPressedColor)
 
     update_color("theme_body_secondary_cell_color", subBgColor)
-    update_color("theme_maintab_cell_color", tabsBgColor)
+    update_color(
+        "theme_maintab_cell_color",
+        combine_color_and_opacity(tabsBgColor, (1)),
+    )
     update_color("theme_tab_bannerbadge_background_color", bottomBannerBgColor)
 
     update_color("theme_direct_share_color", alertShareTextColor)
@@ -227,7 +235,8 @@ async def create_theme(
     update_color("theme_passcode_keypad_pressed_color", keyPadTextColor)
     update_color("theme_passcode_keypad_background_color", keyPadBgColor)
     update_color(
-        "theme_passcode_keypad_pressed_background_color", keyPadBgColor
+        "theme_passcode_keypad_pressed_background_color",
+        combine_color_and_opacity(keyPadBgColor, 0.5),
     )  # input 필요
     update_color("theme_passcode_pattern_line_color", keyPadTextColor)  # input 필요
 
@@ -257,7 +266,7 @@ def update_color(color_name, new_value):
     for color_element in root.findall(".//color[@name='{}']".format(color_name)):
         # 새 값으로 업데이트
         if new_value is not None:
-            color_element.text = new_value
+            color_element.text = str(new_value)
 
     # 변경사항 저장
     tree.write(colors_xml_path, encoding="utf-8", xml_declaration=True)
@@ -288,9 +297,7 @@ async def build_apk():
         await process.wait()
 
         if process.returncode == 0:
-            apk_path = (
-                "/app/kakao_theme_android/app/build/outputs/apk/debug/ONO-theme.apk"
-            )
+            apk_path = "/app/kakao_theme_android/build/outputs/apk/debug/ONO-theme.apk"
             logger.info("Build successful")
             return apk_path
         else:
@@ -300,6 +307,30 @@ async def build_apk():
     except Exception as e:
         logger.exception("An error occurred during the build process")
         raise Exception(f"Build error: {str(e)}")
+
+
+def opacity_to_hex(opacity: Union[float, int, None] = None) -> str:
+    if opacity is None:
+        opacity_float = 1.0
+    else:
+        try:
+            opacity_float = float(opacity)
+        except ValueError:
+            raise ValueError("Opacity must be a number", opacity)
+
+        if not 0 <= opacity_float <= 1:
+            raise ValueError("Opacity must be between 0 and 1", opacity)
+
+    hex_value = int(opacity_float * 255)
+    return f"{hex_value:02X}"
+
+
+def combine_color_and_opacity(
+    color: Optional[str], opacity: Union[float, int, None]
+) -> Optional[str]:
+    if color is None:
+        return None
+    return color + opacity_to_hex(opacity)
 
 
 if __name__ == "__main__":

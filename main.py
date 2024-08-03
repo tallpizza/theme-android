@@ -404,7 +404,7 @@ def combine_color_and_opacity(
 ) -> Optional[str]:
     if color is None:
         return None
-    return color + opacity_to_hex(opacity)
+    return opacity_to_hex(opacity) + color
 
 
 def create_nine_patch(imageObj, location):

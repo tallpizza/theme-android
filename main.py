@@ -1,4 +1,5 @@
 import asyncio
+import io
 from fastapi import FastAPI, File, Form, UploadFile, BackgroundTasks
 from fastapi.responses import FileResponse
 import os
@@ -6,6 +7,7 @@ import aiofiles
 from typing import Optional, Union
 import logging
 import xml.etree.ElementTree as ET
+from PIL import Image, ImageDraw
 
 
 app = FastAPI()
@@ -159,13 +161,9 @@ async def create_theme(
         defaultProfile,
         chatRoomBg,
         bubbleSend1,
-        bubbleSend1Selected,
         bubbleSend2,
-        bubbleSend2Selected,
         bubbleReceive1,
-        bubbleReceive1Selected,
         bubbleReceive2,
-        bubbleReceive2Selected,
         passcodeBg,
         passcodeImage1,
         passcodeImage2,
@@ -182,6 +180,20 @@ async def create_theme(
         if image_file is not None:
             file_path = os.path.join(theme_dir, file_name)
             content = await image_file.read()
+
+            if file_name == "theme_chatroom_bubble_me_01_image.9.png":
+                location = sendEdgeinsets1
+                content = create_nine_patch(content, location)
+            elif file_name == "theme_chatroom_bubble_me_02_image.9.png":
+                location = sendEdgeinsets2
+                content = create_nine_patch(content, location)
+            elif file_name == "theme_chatroom_bubble_you_01_image.9.png":
+                location = receiveEdgeinsets1
+                content = create_nine_patch(content, location)
+            elif file_name == "theme_chatroom_bubble_you_02_image.9.png":
+                location = receiveEdgeinsets2
+                content = create_nine_patch(content, location)
+
             async with aiofiles.open(file_path, "wb") as out_file:
                 await out_file.write(content)
 
@@ -331,6 +343,42 @@ def combine_color_and_opacity(
     if color is None:
         return None
     return color + opacity_to_hex(opacity)
+
+
+def create_nine_patch(imageObj, location):
+    # Parse location string
+    top, left, bottom, right = map(lambda x: int(x.rstrip("px")), location.split())
+
+    # Open the image
+    img = Image.open(io.BytesIO(imageObj))
+
+    # Create a new image with a 1-pixel border
+    nine_patch = Image.new("RGBA", (img.width + 2, img.height + 2), (0, 0, 0, 0))
+
+    # Paste the original image into the center
+    nine_patch.paste(img, (1, 1))
+
+    # Create a drawing object
+    draw = ImageDraw.Draw(nine_patch)
+
+    # Draw the stretchable areas (left and top)
+    draw.line([(1, 0), (left + 1, 0)], fill="black")
+    draw.line([(0, 1), (0, top + 1)], fill="black")
+
+    # Draw the padding box (right and bottom)
+    draw.line(
+        [(img.width - right + 1, img.height + 1), (img.width + 1, img.height + 1)],
+        fill="black",
+    )
+    draw.line(
+        [(img.width + 1, img.height - bottom + 1), (img.width + 1, img.height + 1)],
+        fill="black",
+    )
+
+    # Save the nine-patch image to a bytes buffer
+    buffer = io.BytesIO()
+    nine_patch.save(buffer, format="PNG")
+    return buffer.getvalue()
 
 
 if __name__ == "__main__":

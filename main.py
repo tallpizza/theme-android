@@ -20,6 +20,11 @@ colors_xml_path = "./kakao_theme_android/src/main/theme/values/colors.xml"
 strings_xml_path = "./kakao_theme_android/src/main/theme/values/strings.xml"
 
 
+@app.get("/test")
+async def test():
+    return "Success from android theme"
+
+
 @app.post("/upload")
 async def create_theme(
     background_tasks: BackgroundTasks,

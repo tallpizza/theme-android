@@ -1,5 +1,6 @@
 import asyncio
 import io
+import re
 from fastapi import FastAPI, File, Form, UploadFile, BackgroundTasks
 from fastapi.responses import FileResponse
 import os
@@ -127,6 +128,8 @@ async def create_theme(
 ):
     # 테마 디렉토리 생성
     os.makedirs(theme_dir, exist_ok=True)
+
+    await update_version_in_gradle()
 
     # 이미지 파일 저장
     file_names = [
@@ -298,6 +301,38 @@ async def create_theme(
     apk_path = await build_apk()
 
     return FileResponse(apk_path, filename="custom_theme.apk")
+
+
+def increment_version(version):
+    major, minor, patch = map(int, version.split("."))
+    patch += 1
+    if patch == 1000:
+        patch = 0
+        minor += 1
+        if minor == 1000:
+            minor = 0
+            major += 1
+    return f"{major}.{minor}.{patch}"
+
+
+async def update_version_in_gradle():
+    gradle_file = "/app/kakao_theme_android/build.gradle"
+    async with aiofiles.open(gradle_file, "r") as file:
+        content = await file.read()
+
+    version_pattern = r'versionName\s+"(\d+\.\d+\.\d+)"'
+    match = re.search(version_pattern, content)
+    if match:
+        current_version = match.group(1)
+        new_version = increment_version(current_version)
+        content = re.sub(version_pattern, f'versionName "{new_version}"', content)
+
+        async with aiofiles.open(gradle_file, "w") as file:
+            await file.write(content)
+
+        logger.info(f"Version updated from {current_version} to {new_version}")
+    else:
+        logger.warning("Version not found in build.gradle")
 
 
 def create_mipmaps(image_bytes, size_paths):

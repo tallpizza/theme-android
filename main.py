@@ -28,6 +28,8 @@ mipmap_dir = "./kakao_theme_android/src/main"
 theme_dir = "./kakao_theme_android/src/main/theme/drawable-xxhdpi"
 colors_xml_path = "./kakao_theme_android/src/main/theme/values/colors.xml"
 strings_xml_path = "./kakao_theme_android/src/main/theme/values/strings.xml"
+strings_ja_xml_path = "./kakao_theme_android/src/main/theme/values-ja/strings.xml"
+strings_ko_xml_path = "./kakao_theme_android/src/main/theme/values-ko/strings.xml"
 
 
 @app.get("/test")
@@ -161,7 +163,7 @@ async def create_theme(
     ]
 
     image_files = [
-        kakaoIcon,  # TODO: mipmap으로 변환 필요
+        kakaoIcon,
         tabsBg,
         tabsFrends,
         tabsFrendsSelected,
@@ -212,11 +214,11 @@ async def create_theme(
                 content = create_nine_patch(content, location)
             elif file_name == "commonIcoTheme.png":
                 size_paths = {
-                    72: mipmap_dir + "/res/mipmap-hdpi/ic_launcher.png",
-                    48: mipmap_dir + "/res/mipmap-mdpi/ic_launcher.png",
-                    96: mipmap_dir + "/res/mipmap-xhdpi/ic_launcher.png",
-                    144: mipmap_dir + "/res/mipmap-xxhdpi/ic_launcher.png",
-                    192: mipmap_dir + "/res/mipmap-xxxhdpi/ic_launcher.png",
+                    72: mipmap_dir + "/res/mipmap-hdpi/ic_launcher_background.png",
+                    48: mipmap_dir + "/res/mipmap-mdpi/ic_launcher_background.png",
+                    96: mipmap_dir + "/res/mipmap-xhdpi/ic_launcher_background.png",
+                    144: mipmap_dir + "/res/mipmap-xxhdpi/ic_launcher_background.png",
+                    192: mipmap_dir + "/res/mipmap-xxxhdpi/ic_launcher_background.png",
                     512: mipmap_dir + "/ic_launcher-web.png",
                 }
                 create_mipmaps(content, size_paths)
@@ -249,7 +251,6 @@ async def create_theme(
         "theme_body_cell_border_color",
         combine_color_and_opacity(borderColor, (borderOpacity)),
     )
-
     update_color(
         "theme_body_cell_color",
         combine_color_and_opacity(listBgColor, (listBgOpacity)),
@@ -296,39 +297,35 @@ async def create_theme(
 
     apk_path = await build_apk()
 
-    # APK 파일 전송
     return FileResponse(apk_path, filename="custom_theme.apk")
 
 
 def create_mipmaps(image_bytes, size_paths):
-    # 바이트 데이터로부터 이미지 열기
     original_image = Image.open(io.BytesIO(image_bytes))
 
-    # 각 크기별로 mipmap 생성 및 지정된 경로에 저장
     for size, path in size_paths.items():
-        # 이미지 리사이즈
         resized_image = original_image.copy()
         resized_image.thumbnail((size, size))
 
-        # 저장 경로의 디렉토리가 없으면 생성
         os.makedirs(os.path.dirname(path), exist_ok=True)
 
-        # 이미지 저장
         resized_image.save(path)
 
         logger.info(f"Saved mipmap {size}x{size} to: {path}")
 
 
 def update_text(text_name, new_value):
-    # XML 파일 파싱
-    tree = ET.parse(strings_xml_path)
-    root = tree.getroot()
+    xml_paths = [strings_xml_path, strings_ja_xml_path, strings_ko_xml_path]
 
-    for color_element in root.findall(".//string[@name='{}']".format(text_name)):
-        if new_value is not None:
-            color_element.text = str(new_value)
+    for path in xml_paths:
+        tree = ET.parse(path)
+        root = tree.getroot()
 
-    tree.write(strings_xml_path, encoding="utf-8", xml_declaration=True)
+        for color_element in root.findall(".//string[@name='{}']".format(text_name)):
+            if new_value is not None:
+                color_element.text = str(new_value)
+
+        tree.write(path, encoding="utf-8", xml_declaration=True)
 
 
 def update_color(color_name, new_value):
@@ -404,11 +401,11 @@ def combine_color_and_opacity(
 ) -> Optional[str]:
     if color is None:
         return None
-    return opacity_to_hex(opacity) + color
+    hex_color = color.lstrip("#")
+    return "#" + opacity_to_hex(opacity) + hex_color
 
 
 def create_nine_patch(imageObj, location):
-    # Parse location string
     top, left, bottom, right = map(lambda x: int(x.rstrip("px")), location.split())
 
     # Open the image

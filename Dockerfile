@@ -27,9 +27,6 @@ COPY kakao_theme_android/gradle /app/kakao_theme_android/gradle
 WORKDIR /app/kakao_theme_android
 RUN ./gradlew dependencies --no-daemon
 
-# Android 프로젝트 복사 및 빌드
-COPY kakao_theme_android /app/kakao_theme_android
-RUN ./gradlew build --no-daemon
 # Python 애플리케이션 복사
 COPY . /app
 RUN chmod +x /app/kakao_theme_android/gradlew

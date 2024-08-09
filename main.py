@@ -149,10 +149,10 @@ async def create_theme(
         "theme_find_add_friend_button_image.png",  # pressed필요
         "theme_profile_01_image.png",
         "theme_chatroom_background_image.png",
-        "theme_chatroom_bubble_me_01_image.9.png",  # 9.png로 변환필요
-        "theme_chatroom_bubble_me_02_image.9.png",  # 9.png로 변환필요
-        "theme_chatroom_bubble_you_01_image.9.png",  # 9.png로 변환필요
-        "theme_chatroom_bubble_you_02_image.9.png",  # 9.png로 변환필요
+        "theme_chatroom_bubble_me_01_image.9.png",
+        "theme_chatroom_bubble_me_02_image.9.png",
+        "theme_chatroom_bubble_you_01_image.9.png",
+        "theme_chatroom_bubble_you_02_image.9.png",
         "theme_passcode_background_image.png",
         "theme_passcode_01_image.png",
         "theme_passcode_02_image.png",
@@ -162,7 +162,6 @@ async def create_theme(
         "theme_passcode_02_checked_image.png",
         "theme_passcode_03_checked_image.png",
         "theme_passcode_04_checked_image.png",
-        "passcodeKeypadPressed@3x.png",  # 안드로이드에선 사용안함
     ]
 
     image_files = [
@@ -195,7 +194,6 @@ async def create_theme(
         passcodeImage2Selected,
         passcodeImage3Selected,
         passcodeImage4Selected,
-        keyPadPressedImage,
     ]
 
     for image_file, file_name in zip(image_files, file_names):

@@ -21,12 +21,18 @@ ENV ANDROID_HOME /opt/android-sdk
 RUN mkdir "$ANDROID_HOME/licenses" || true && \
   echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-license"
 
+# Gradle 캐시를 위한 레이어 추가
+COPY kakao_theme_android/build.gradle kakao_theme_android/gradlew /app/kakao_theme_android/
+COPY kakao_theme_android/gradle /app/kakao_theme_android/gradle
+WORKDIR /app/kakao_theme_android
+RUN ./gradlew dependencies --no-daemon
+
 
 # Python 애플리케이션 복사
 COPY . /app
 RUN chmod +x /app/kakao_theme_android/gradlew
 WORKDIR /app/kakao_theme_android
-RUN ./gradlew assembleDebug
+RUN ./gradlew assembleDebug --no-daemon
 
 WORKDIR /app
 

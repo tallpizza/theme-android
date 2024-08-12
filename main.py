@@ -245,6 +245,7 @@ async def create_theme(
     update_color("theme_feature_primary_pressed_color", serviceBtnColor)  # input필요
 
     update_color("theme_background_color", mainBackgroundColor)
+    update_color("theme_header_cell_color", mainBackgroundColor)
     update_color("theme_chatroom_background_color", chatRoomBgColor)
     update_color("theme_passcode_background_color", passcodeBgColor)
 

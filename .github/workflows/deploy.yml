@@ -1,0 +1,33 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install SSH key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        known_hosts: ${{ secrets.KNOWN_HOSTS }}
+
+    - name: Deploy to server
+      env:
+        HOST: 182.222.233.17
+        USER: ${{ secrets.SERVER_USER }}
+      run: |
+        ssh $USER@$HOST << EOF
+          cd ~/source/theme-android
+          git pull origin master
+          cd ~/compose
+          docker-compose stop theme-android
+          docker-compose build theme-android
+          docker-compose up -d theme-android
+        EOF

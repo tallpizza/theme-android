@@ -27,7 +27,7 @@ jobs:
           cd ~/source/theme-android
           git pull origin master
           cd ~/compose
-          docker-compose stop theme-android
-          docker-compose build theme-android
-          docker-compose up -d theme-android
+          docker compose stop theme-android
+          docker compose build theme-android
+          docker compose up -d theme-android
         EOF

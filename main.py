@@ -234,7 +234,7 @@ async def create_theme(
     update_text("app_name", themeName)
 
     update_color("theme_header_color", headerColor)
-    update_color("theme_section_title_color", "#007FFF")  # input 필요
+    update_color("theme_section_title_color", sectionColor)  # input 필요
     update_color("theme_title_color", nameColor)  # input 필요
     update_color("theme_title_pressed_color", namePressedColor)
     update_color("theme_paragraph_color", paragraphColor)

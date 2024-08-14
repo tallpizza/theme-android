@@ -440,10 +440,23 @@ def combine_color_and_opacity(
 
 
 def create_nine_patch(imageObj, location):
-    top, left, bottom, right = map(lambda x: int(x.rstrip("px")), location.split())
+    stretch_width, stretch_height, padding_width, padding_height = map(
+        lambda x: int(x.rstrip("px")), location.split()
+    )
 
     # Open the image
     img = Image.open(io.BytesIO(imageObj))
+
+    # Calculate the start and end points for stretch and padding areas
+    left_start = (img.width - stretch_width) // 2
+    left_end = left_start + stretch_width
+    top_start = (img.height - stretch_height) // 2
+    top_end = top_start + stretch_height
+
+    right_start = (img.height - padding_height) // 2
+    right_end = right_start + padding_height
+    bottom_start = (img.width - padding_width) // 2
+    bottom_end = bottom_start + padding_width
 
     # Create a new image with a 1-pixel border
     nine_patch = Image.new("RGBA", (img.width + 2, img.height + 2), (0, 0, 0, 0))
@@ -455,17 +468,28 @@ def create_nine_patch(imageObj, location):
     draw = ImageDraw.Draw(nine_patch)
 
     # Draw the stretchable areas (left and top)
-    draw.line([(1, 0), (left + 1, 0)], fill="black")
-    draw.line([(0, 1), (0, top + 1)], fill="black")
+    draw.line([(0, 0), (left_start, 0)], fill=(0, 0, 0, 0))
+    draw.line([(left_start, 0), (left_end, 0)], fill="black")
+    draw.line([(left_end, 0), (img.width + 1, 0)], fill=(0, 0, 0, 0))
+
+    draw.line([(0, 0), (0, top_start)], fill=(0, 0, 0, 0))
+    draw.line([(0, top_start), (0, top_end)], fill="black")
+    draw.line([(0, top_end), (0, img.height + 1)], fill=(0, 0, 0, 0))
 
     # Draw the padding box (right and bottom)
+    draw.line([(img.width + 1, 0), (img.width + 1, right_start)], fill=(0, 0, 0, 0))
+    draw.line([(img.width + 1, right_start), (img.width + 1, right_end)], fill="black")
     draw.line(
-        [(img.width - right + 1, img.height + 1), (img.width + 1, img.height + 1)],
-        fill="black",
+        [(img.width + 1, right_end), (img.width + 1, img.height + 1)], fill=(0, 0, 0, 0)
+    )
+
+    draw.line([(0, img.height + 1), (bottom_start, img.height + 1)], fill=(0, 0, 0, 0))
+    draw.line(
+        [(bottom_start, img.height + 1), (bottom_end, img.height + 1)], fill="black"
     )
     draw.line(
-        [(img.width + 1, img.height - bottom + 1), (img.width + 1, img.height + 1)],
-        fill="black",
+        [(bottom_end, img.height + 1), (img.width + 1, img.height + 1)],
+        fill=(0, 0, 0, 0),
     )
 
     # Save the nine-patch image to a bytes buffer

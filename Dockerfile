@@ -32,7 +32,7 @@ RUN ./gradlew dependencies --no-daemon
 COPY . /app
 RUN chmod +x /app/kakao_theme_android/gradlew
 WORKDIR /app/kakao_theme_android
-RUN ./gradlew assembleDebug --no-daemon
+RUN ./gradlew assembleDebug 
 
 WORKDIR /app
 

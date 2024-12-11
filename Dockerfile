@@ -6,9 +6,14 @@ RUN apt-get update && apt-get install -y \
   curl \
   python3 \
   python3-pip \
+  python3-venv \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Python 가상환경 생성 및 활성화
+RUN python3 -m venv /app/venv
+ENV PATH="/app/venv/bin:$PATH"
 
 # Python 요구사항 설치
 COPY requirements.txt .
@@ -26,7 +31,6 @@ COPY kakao_theme_android/build.gradle kakao_theme_android/gradlew /app/kakao_the
 COPY kakao_theme_android/gradle /app/kakao_theme_android/gradle
 WORKDIR /app/kakao_theme_android
 RUN ./gradlew dependencies --no-daemon
-
 
 # Python 애플리케이션 복사
 COPY . /app

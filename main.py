@@ -338,14 +338,18 @@ def create_mipmaps(image_bytes, size_paths):
     original_image = Image.open(io.BytesIO(image_bytes))
 
     for size, path in size_paths.items():
+        # Create and save background image
         resized_image = original_image.copy()
         resized_image.thumbnail((size, size))
-
         os.makedirs(os.path.dirname(path), exist_ok=True)
-
         resized_image.save(path)
+        logger.info(f"Saved background mipmap {size}x{size} to: {path}")
 
-        logger.info(f"Saved mipmap {size}x{size} to: {path}")
+        # Create and save transparent foreground image
+        foreground_path = path.replace("background", "foreground")
+        transparent_image = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        transparent_image.save(foreground_path)
+        logger.info(f"Saved transparent foreground mipmap {size}x{size} to: {foreground_path}")
 
 
 def update_text(text_name, new_value):

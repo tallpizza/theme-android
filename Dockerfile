@@ -1,45 +1,44 @@
 FROM thyrlian/android-sdk
 
-# Python 설치
 RUN apt-get update && apt-get install -y \
-  git \
-  curl \
-  python3 \
-  python3-pip \
-  python3-venv \
-  && rm -rf /var/lib/apt/lists/*
+    git \
+    curl \
+    python3 \
+    python3-pip \
+    python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV UV_LINK_MODE=copy \
+    VIRTUAL_ENV=/app/.venv \
+    PATH="/app/.venv/bin:/root/.local/bin:$PATH" \
+    ANDROID_HOME=/opt/android-sdk
 
 WORKDIR /app
 
-# Python 가상환경 생성 및 활성화
-RUN python3 -m venv /app/venv
-ENV PATH="/app/venv/bin:$PATH"
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Python 요구사항 설치
-COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+COPY pyproject.toml uv.lock ./
 
-# Android SDK 설정
-ENV ANDROID_HOME /opt/android-sdk
+RUN uv sync --frozen --no-dev --no-install-project
 
-# Android SDK 라이선스 동의
 RUN mkdir "$ANDROID_HOME/licenses" || true && \
-  echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-license"
+    echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-license"
 
-# Gradle 캐시를 위한 레이어 추가
 COPY kakao_theme_android/build.gradle kakao_theme_android/gradlew /app/kakao_theme_android/
 COPY kakao_theme_android/gradle /app/kakao_theme_android/gradle
 WORKDIR /app/kakao_theme_android
 RUN ./gradlew dependencies --no-daemon
 
-# Python 애플리케이션 복사
-COPY . /app
+WORKDIR /app
+COPY . .
 RUN chmod +x /app/kakao_theme_android/gradlew
+
 WORKDIR /app/kakao_theme_android
-RUN ./gradlew assembleDebug 
+RUN ./gradlew assembleDebug
 
 WORKDIR /app
+RUN uv sync --frozen --no-dev
 
 EXPOSE 8000
 
-CMD ["python3", "main.py"]
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

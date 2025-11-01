@@ -19,6 +19,7 @@
 build/
 
 venv/
+.venv/
 
 # 특정 빌드나 실행 스크립트 제외
 docker-compose.override.yml

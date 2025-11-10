@@ -5,9 +5,10 @@ from fastapi import FastAPI, File, Form, UploadFile, BackgroundTasks
 from fastapi.responses import FileResponse
 import os
 import aiofiles
-from typing import Optional, Union
+from typing import Optional, Union, Dict, Iterable, Tuple
 import logging
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from PIL import Image, ImageDraw
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,13 +25,160 @@ app.add_middleware(
     allow_headers=["*"],  # 모든 HTTP 헤더 허용
 )
 
+BASE_DIR = Path(__file__).resolve().parent
+ANDROID_PROJECT_ROOT_ENV = os.environ.get("ANDROID_PROJECT_ROOT")
 
-mipmap_dir = "./kakao_theme_android/src/main"
-theme_dir = "./kakao_theme_android/src/main/theme/drawable-xxhdpi"
-colors_xml_path = "./kakao_theme_android/src/main/theme/values/colors.xml"
-strings_xml_path = "./kakao_theme_android/src/main/theme/values/strings.xml"
-strings_ja_xml_path = "./kakao_theme_android/src/main/theme/values-ja/strings.xml"
-strings_ko_xml_path = "./kakao_theme_android/src/main/theme/values-ko/strings.xml"
+
+def resolve_android_project_root() -> Path:
+    candidates = []
+    if ANDROID_PROJECT_ROOT_ENV:
+        candidates.append(Path(ANDROID_PROJECT_ROOT_ENV))
+    candidates.append(BASE_DIR / "kakao_theme_android")
+
+    for path in candidates:
+        if path.exists():
+            return path
+
+    searched = ", ".join(str(path) for path in candidates)
+    raise FileNotFoundError(
+        "안드로이드 프로젝트 경로를 찾을 수 없습니다. ANDROID_PROJECT_ROOT 환경 변수를 확인하세요. "
+        f"탐색 경로: {searched}"
+    )
+
+
+ANDROID_PROJECT_ROOT = resolve_android_project_root()
+ANDROID_PROJECT_ROOT_STR = str(ANDROID_PROJECT_ROOT)
+DEFAULT_GRADLE_USER_HOME = os.environ.get("GRADLE_USER_HOME") or str(
+    ANDROID_PROJECT_ROOT / ".gradle"
+)
+os.makedirs(DEFAULT_GRADLE_USER_HOME, exist_ok=True)
+
+GRADLE_FILE_ENV = os.environ.get("ANDROID_GRADLE_FILE")
+GRADLE_FILE_CANDIDATES = [
+    Path(GRADLE_FILE_ENV) if GRADLE_FILE_ENV else None,
+    ANDROID_PROJECT_ROOT / "build.gradle",
+]
+
+COMMON_ANDROID_SDK_PATHS = [
+    Path.home() / "Library/Android/sdk",
+    Path.home() / "Android/Sdk",
+]
+
+
+mipmap_dir = ANDROID_PROJECT_ROOT / "src" / "main"
+theme_dir = ANDROID_PROJECT_ROOT / "src" / "main" / "theme" / "drawable-xxhdpi"
+colors_xml_path = ANDROID_PROJECT_ROOT / "src" / "main" / "theme" / "values" / "colors.xml"
+strings_xml_path = ANDROID_PROJECT_ROOT / "src" / "main" / "theme" / "values" / "strings.xml"
+strings_ja_xml_path = (
+    ANDROID_PROJECT_ROOT / "src" / "main" / "theme" / "values-ja" / "strings.xml"
+)
+strings_ko_xml_path = (
+    ANDROID_PROJECT_ROOT / "src" / "main" / "theme" / "values-ko" / "strings.xml"
+)
+
+LAUNCHER_ICON_FILENAME = "commonIcoTheme.png"
+ICON_SIZE_PATHS = {
+    72: mipmap_dir / "res" / "mipmap-hdpi" / "ic_launcher_background.png",
+    48: mipmap_dir / "res" / "mipmap-mdpi" / "ic_launcher_background.png",
+    96: mipmap_dir / "res" / "mipmap-xhdpi" / "ic_launcher_background.png",
+    144: mipmap_dir / "res" / "mipmap-xxhdpi" / "ic_launcher_background.png",
+    192: mipmap_dir / "res" / "mipmap-xxxhdpi" / "ic_launcher_background.png",
+    512: mipmap_dir / "ic_launcher-web.png",
+}
+LAUNCHER_ICON_OUTPUTS = {size: str(path) for size, path in ICON_SIZE_PATHS.items()}
+
+
+def resolve_gradle_file_path() -> Path:
+    for path in GRADLE_FILE_CANDIDATES:
+        if path and path.exists():
+            return path
+
+    searched = ", ".join(str(path) for path in GRADLE_FILE_CANDIDATES if path)
+    raise FileNotFoundError(
+        "build.gradle 파일을 찾을 수 없습니다. ANDROID_GRADLE_FILE 환경 변수를 확인하세요. "
+        f"탐색 경로: {searched}"
+    )
+
+
+def _format_local_properties_path(path: Path) -> str:
+    value = str(path)
+    value = value.replace("\\", "\\\\")
+    value = value.replace(":", "\\:")
+    value = value.replace(" ", "\\ ")
+    return value
+
+
+def _parse_sdk_dir_from_local_properties(local_properties_path: Path) -> Optional[Path]:
+    if not local_properties_path.exists():
+        return None
+
+    with open(local_properties_path, "r", encoding="utf-8") as file:
+        for line in file:
+            line = line.strip()
+            if line.startswith("sdk.dir="):
+                raw_value = line.split("=", 1)[1]
+                raw_value = raw_value.replace("\\ ", " ")
+                raw_value = raw_value.replace("\\:", ":")
+                raw_value = raw_value.replace("\\\\", "\\")
+                return Path(raw_value).expanduser()
+    return None
+
+
+def _write_sdk_dir_to_local_properties(
+    local_properties_path: Path, sdk_path: Path
+) -> None:
+    sdk_dir_line = f"sdk.dir={_format_local_properties_path(sdk_path)}\n"
+
+    if local_properties_path.exists():
+        with open(local_properties_path, "r", encoding="utf-8") as file:
+            lines = file.readlines()
+        updated = False
+        for index, line in enumerate(lines):
+            if line.startswith("sdk.dir="):
+                lines[index] = sdk_dir_line
+                updated = True
+                break
+        if not updated:
+            lines.append(sdk_dir_line)
+    else:
+        lines = [
+            "## Generated by backend to keep Gradle SDK path in sync\n",
+            sdk_dir_line,
+        ]
+
+    with open(local_properties_path, "w", encoding="utf-8") as file:
+        file.writelines(lines)
+
+
+def ensure_android_sdk_path() -> Path:
+    local_properties_path = ANDROID_PROJECT_ROOT / "local.properties"
+
+    env_candidates = [
+        os.environ.get("ANDROID_SDK_ROOT"),
+        os.environ.get("ANDROID_HOME"),
+    ]
+
+    for candidate in env_candidates:
+        if not candidate:
+            continue
+        sdk_path = Path(candidate).expanduser()
+        if sdk_path.exists():
+            _write_sdk_dir_to_local_properties(local_properties_path, sdk_path)
+            return sdk_path
+
+    existing_path = _parse_sdk_dir_from_local_properties(local_properties_path)
+    if existing_path and existing_path.exists():
+        return existing_path
+
+    for candidate_path in COMMON_ANDROID_SDK_PATHS:
+        if candidate_path.exists():
+            _write_sdk_dir_to_local_properties(local_properties_path, candidate_path)
+            return candidate_path
+
+    raise FileNotFoundError(
+        "Android SDK 경로를 찾을 수 없습니다. ANDROID_SDK_ROOT 또는 ANDROID_HOME 환경 변수를 설정하거나 "
+        f"{local_properties_path} 파일의 sdk.dir 값을 유효한 경로로 업데이트하세요."
+    )
 
 
 @app.get("/test")
@@ -129,180 +277,114 @@ async def create_theme(
     alertShareTextColor: Optional[str] = Form(None),
 ):
     # 테마 디렉토리 생성
-    os.makedirs(theme_dir, exist_ok=True)
+    theme_dir.mkdir(parents=True, exist_ok=True)
 
     await update_version_in_gradle()
 
     open_chat_icon = tabsOpenChats or tabsNow
     open_chat_icon_selected = tabsOpenChatsSelected or tabsNowSelected
 
-    # 이미지 파일 저장
-    file_names = [
-        "commonIcoTheme.png",
-        "theme_background_image.png",
-        "theme_maintab_ico_friends_image.png",
-        "theme_maintab_ico_friends_focused_image.png",
-        "theme_maintab_ico_chats_image.png",
-        "theme_maintab_ico_chats_focused_image.png",
-        "theme_maintab_ico_openchat_image.png",
-        "theme_maintab_ico_openchat_focused_image.png",
-        "theme_maintab_ico_now_image.png",
-        "theme_maintab_ico_now_focused_image.png",
-        "theme_maintab_ico_shopping_image.png",
-        "theme_maintab_ico_shopping_focused_image.png",
-        "theme_maintab_ico_more_image.png",
-        "theme_maintab_ico_more_focused_image.png",
-        "theme_background_image.png",  # 안드로이드에선 탭이랑 메인이랑 차이가없음
-        "theme_find_add_friend_button_image.png",  # pressed필요
-        "theme_profile_01_image.png",
-        "theme_chatroom_background_image.png",
-        "theme_chatroom_bubble_me_01_image.9.png",
-        "theme_chatroom_bubble_me_02_image.9.png",
-        "theme_chatroom_bubble_you_01_image.9.png",
-        "theme_chatroom_bubble_you_02_image.9.png",
-        "theme_passcode_background_image.png",
-        "theme_passcode_01_image.png",
-        "theme_passcode_02_image.png",
-        "theme_passcode_03_image.png",
-        "theme_passcode_04_image.png",
-        "theme_passcode_01_checked_image.png",
-        "theme_passcode_02_checked_image.png",
-        "theme_passcode_03_checked_image.png",
-        "theme_passcode_04_checked_image.png",
+    image_tasks = [
+        (kakaoIcon, LAUNCHER_ICON_FILENAME),
+        (tabsBg, "theme_background_image.png"),
+        (tabsFrends, "theme_maintab_ico_friends_image.png"),
+        (tabsFrendsSelected, "theme_maintab_ico_friends_focused_image.png"),
+        (tabsChats, "theme_maintab_ico_chats_image.png"),
+        (tabsChatsSelected, "theme_maintab_ico_chats_focused_image.png"),
+        (open_chat_icon, "theme_maintab_ico_openchat_image.png"),
+        (
+            open_chat_icon_selected,
+            "theme_maintab_ico_openchat_focused_image.png",
+        ),
+        (tabsNow, "theme_maintab_ico_now_image.png"),
+        (tabsNowSelected, "theme_maintab_ico_now_focused_image.png"),
+        (tabsShopping, "theme_maintab_ico_shopping_image.png"),
+        (tabsShoppingSelected, "theme_maintab_ico_shopping_focused_image.png"),
+        (tabsMore, "theme_maintab_ico_more_image.png"),
+        (tabsMoreSelected, "theme_maintab_ico_more_focused_image.png"),
+        (mainBg, "theme_background_image.png"),
+        (findFriendButton, "theme_find_add_friend_button_image.png"),
+        (defaultProfile, "theme_profile_01_image.png"),
+        (chatRoomBg, "theme_chatroom_background_image.png"),
+        (bubbleSend1, "theme_chatroom_bubble_me_01_image.9.png"),
+        (bubbleSend2, "theme_chatroom_bubble_me_02_image.9.png"),
+        (bubbleReceive1, "theme_chatroom_bubble_you_01_image.9.png"),
+        (bubbleReceive2, "theme_chatroom_bubble_you_02_image.9.png"),
+        (passcodeBg, "theme_passcode_background_image.png"),
+        (passcodeImage1, "theme_passcode_01_image.png"),
+        (passcodeImage2, "theme_passcode_02_image.png"),
+        (passcodeImage3, "theme_passcode_03_image.png"),
+        (passcodeImage4, "theme_passcode_04_image.png"),
+        (passcodeImage1Selected, "theme_passcode_01_checked_image.png"),
+        (passcodeImage2Selected, "theme_passcode_02_checked_image.png"),
+        (passcodeImage3Selected, "theme_passcode_03_checked_image.png"),
+        (passcodeImage4Selected, "theme_passcode_04_checked_image.png"),
     ]
 
-    image_files = [
-        kakaoIcon,
-        tabsBg,
-        tabsFrends,
-        tabsFrendsSelected,
-        tabsChats,
-        tabsChatsSelected,
-        open_chat_icon,
-        open_chat_icon_selected,
-        tabsNow,
-        tabsNowSelected,
-        tabsShopping,
-        tabsShoppingSelected,
-        tabsMore,
-        tabsMoreSelected,
-        mainBg,
-        findFriendButton,
-        defaultProfile,
-        chatRoomBg,
-        bubbleSend1,
-        bubbleSend2,
-        bubbleReceive1,
-        bubbleReceive2,
-        passcodeBg,
-        passcodeImage1,
-        passcodeImage2,
-        passcodeImage3,
-        passcodeImage4,
-        passcodeImage1Selected,
-        passcodeImage2Selected,
-        passcodeImage3Selected,
-        passcodeImage4Selected,
-    ]
+    nine_patch_locations = {
+        "theme_chatroom_bubble_me_01_image.9.png": sendEdgeinsets1,
+        "theme_chatroom_bubble_me_02_image.9.png": sendEdgeinsets2,
+        "theme_chatroom_bubble_you_01_image.9.png": receiveEdgeinsets1,
+        "theme_chatroom_bubble_you_02_image.9.png": receiveEdgeinsets2,
+    }
 
-    for image_file, file_name in zip(image_files, file_names):
-        if image_file is not None:
-            file_path = os.path.join(theme_dir, file_name)
-            content = await image_file.read()
-
-            if file_name == "theme_chatroom_bubble_me_01_image.9.png":
-                location = sendEdgeinsets1
-                content = create_nine_patch(content, location)
-            elif file_name == "theme_chatroom_bubble_me_02_image.9.png":
-                location = sendEdgeinsets2
-                content = create_nine_patch(content, location)
-            elif file_name == "theme_chatroom_bubble_you_01_image.9.png":
-                location = receiveEdgeinsets1
-                content = create_nine_patch(content, location)
-            elif file_name == "theme_chatroom_bubble_you_02_image.9.png":
-                location = receiveEdgeinsets2
-                content = create_nine_patch(content, location)
-            elif file_name == "commonIcoTheme.png":
-                size_paths = {
-                    72: mipmap_dir + "/res/mipmap-hdpi/ic_launcher_background.png",
-                    48: mipmap_dir + "/res/mipmap-mdpi/ic_launcher_background.png",
-                    96: mipmap_dir + "/res/mipmap-xhdpi/ic_launcher_background.png",
-                    144: mipmap_dir + "/res/mipmap-xxhdpi/ic_launcher_background.png",
-                    192: mipmap_dir + "/res/mipmap-xxxhdpi/ic_launcher_background.png",
-                    512: mipmap_dir + "/ic_launcher-web.png",
-                }
-                create_mipmaps(content, size_paths)
-                continue
-
-            async with aiofiles.open(file_path, "wb") as out_file:
-                await out_file.write(content)
+    await persist_uploaded_images(image_tasks, nine_patch_locations)
 
     logger.info("theme file saved")
 
-    update_text("theme_title", themeName)
-    update_text("app_name", themeName)
+    for text_name in ("theme_title", "app_name"):
+        update_text(text_name, themeName)
 
-    update_color("theme_header_color", headerColor)
-    update_color("theme_section_title_color", sectionColor)  # input 필요
-    update_color("theme_title_color", nameColor)  # input 필요
-    update_color("theme_title_pressed_color", namePressedColor)
-    update_color("theme_paragraph_color", paragraphColor)
-    update_color("theme_paragraph_pressed_color", paragraphPressedColor)
-    update_color("theme_description_color", descriptionColor)
-    update_color("theme_description_pressed_color", descriptionPressedColor)
-    update_color("theme_feature_primary_color", serviceBtnColor)
-    update_color("theme_feature_primary_pressed_color", serviceBtnColor)  # input필요
+    color_map = {
+        "theme_header_color": headerColor,
+        "theme_section_title_color": sectionColor,
+        "theme_title_color": nameColor,
+        "theme_title_pressed_color": namePressedColor,
+        "theme_paragraph_color": paragraphColor,
+        "theme_paragraph_pressed_color": paragraphPressedColor,
+        "theme_description_color": descriptionColor,
+        "theme_description_pressed_color": descriptionPressedColor,
+        "theme_feature_primary_color": serviceBtnColor,
+        "theme_feature_primary_pressed_color": serviceBtnColor,
+        "theme_background_color": mainBackgroundColor,
+        "theme_header_cell_color": mainBackgroundColor,
+        "theme_chatroom_background_color": chatRoomBgColor,
+        "theme_passcode_background_color": passcodeBgColor,
+        "theme_body_cell_pressed_color": listBgPressedColor,
+        "theme_body_secondary_cell_color": subBgColor,
+        "theme_tab_bannerbadge_background_color": bottomBannerBgColor,
+        "theme_direct_share_color": alertShareTextColor,
+        "theme_direct_share_button_color": alertShareNameColor,
+        "theme_direct_share_background_color": alertShareBgColor,
+        "theme_notification_color": alertMessageTextColor,
+        "theme_notification_background_color": alertMessageBgColor,
+        "theme_notification_background_pressed_color": alertMessageBgColor,
+        "theme_passcode_color": passcodeTitleColor,
+        "theme_passcode_keypad_color": keyPadTextColor,
+        "theme_passcode_keypad_pressed_color": keyPadTextColor,
+        "theme_passcode_keypad_background_color": keyPadBgColor,
+        "theme_passcode_pattern_line_color": keyPadTextColor,
+        "theme_chatroom_bubble_me_color": textColor,
+        "theme_chatroom_bubble_you_color": receiveTextColor,
+        "theme_chatroom_unread_count_color": unReadColor,
+        "theme_chatroom_input_bar_background_color": inputBarBgColor,
+        "theme_chatroom_input_bar_send_button_color": sendBgColor,
+        "theme_chatroom_input_bar_send_icon_color": sendIconColor,
+        "theme_chatroom_input_bar_menu_icon_color": menuButtonColor,
+    }
 
-    update_color("theme_background_color", mainBackgroundColor)
-    update_color("theme_header_cell_color", mainBackgroundColor)
-    update_color("theme_chatroom_background_color", chatRoomBgColor)
-    update_color("theme_passcode_background_color", passcodeBgColor)
+    for color_name, value in color_map.items():
+        update_color(color_name, value)
 
-    update_color(
-        "theme_body_cell_border_color",
-        combine_color_and_opacity(borderColor, (borderOpacity)),
-    )
-    update_color(
-        "theme_body_cell_color",
-        combine_color_and_opacity(listBgColor, (listBgOpacity)),
-    )
-    update_color("theme_body_cell_pressed_color", listBgPressedColor)
+    combined_color_map = {
+        "theme_body_cell_border_color": (borderColor, borderOpacity),
+        "theme_body_cell_color": (listBgColor, listBgOpacity),
+        "theme_maintab_cell_color": (tabsBgColor, 1),
+        "theme_passcode_keypad_pressed_background_color": (keyPadBgColor, 0.5),
+    }
 
-    update_color("theme_body_secondary_cell_color", subBgColor)
-    update_color(
-        "theme_maintab_cell_color",
-        combine_color_and_opacity(tabsBgColor, (1)),
-    )
-    update_color("theme_tab_bannerbadge_background_color", bottomBannerBgColor)
-
-    update_color("theme_direct_share_color", alertShareTextColor)
-    update_color("theme_direct_share_button_color", alertShareNameColor)
-    update_color("theme_direct_share_background_color", alertShareBgColor)
-
-    update_color("theme_notification_color", alertMessageTextColor)
-    update_color("theme_notification_background_color", alertMessageBgColor)
-    update_color(
-        "theme_notification_background_pressed_color", alertMessageBgColor
-    )  # input 없음
-
-    update_color("theme_passcode_color", passcodeTitleColor)
-    update_color("theme_passcode_keypad_color", keyPadTextColor)
-    update_color("theme_passcode_keypad_pressed_color", keyPadTextColor)
-    update_color("theme_passcode_keypad_background_color", keyPadBgColor)
-    update_color(
-        "theme_passcode_keypad_pressed_background_color",
-        combine_color_and_opacity(keyPadBgColor, 0.5),
-    )  # input 필요
-    update_color("theme_passcode_pattern_line_color", keyPadTextColor)  # input 필요
-
-    update_color("theme_chatroom_bubble_me_color", textColor)
-    update_color("theme_chatroom_bubble_you_color", receiveTextColor)
-    update_color("theme_chatroom_unread_count_color", unReadColor)
-
-    update_color("theme_chatroom_input_bar_background_color", inputBarBgColor)
-    update_color("theme_chatroom_input_bar_send_button_color", sendBgColor)
-    update_color("theme_chatroom_input_bar_send_icon_color", sendIconColor)
-    update_color("theme_chatroom_input_bar_menu_icon_color", menuButtonColor)
+    for color_name, (color_value, opacity_value) in combined_color_map.items():
+        update_color(color_name, combine_color_and_opacity(color_value, opacity_value))
 
     logger.info("update theme colors completed")
 
@@ -324,7 +406,7 @@ def increment_version(version):
 
 
 async def update_version_in_gradle():
-    gradle_file = "/app/kakao_theme_android/build.gradle"
+    gradle_file = resolve_gradle_file_path()
     async with aiofiles.open(gradle_file, "r") as file:
         content = await file.read()
 
@@ -338,9 +420,32 @@ async def update_version_in_gradle():
         async with aiofiles.open(gradle_file, "w") as file:
             await file.write(content)
 
-        logger.info(f"Version updated from {current_version} to {new_version}")
+        logger.info(f"Version updated from {current_version} to {new_version} ({gradle_file})")
     else:
         logger.warning("Version not found in build.gradle")
+
+
+async def persist_uploaded_images(
+    image_tasks: Iterable[Tuple[Optional[UploadFile], str]],
+    nine_patch_locations: Dict[str, Optional[str]],
+) -> None:
+    for image_file, filename in image_tasks:
+        if image_file is None:
+            continue
+
+        content = await image_file.read()
+        location = nine_patch_locations.get(filename)
+        if location:
+            content = create_nine_patch(content, location)
+
+        if filename == LAUNCHER_ICON_FILENAME:
+            create_mipmaps(content, LAUNCHER_ICON_OUTPUTS)
+            continue
+
+        file_path = theme_dir / filename
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        async with aiofiles.open(file_path, "wb") as out_file:
+            await out_file.write(content)
 
 
 def create_mipmaps(image_bytes, size_paths):
@@ -391,13 +496,29 @@ def update_color(color_name, new_value):
 
 
 async def build_apk():
+    project_root = ANDROID_PROJECT_ROOT
+    gradlew_path = project_root / "gradlew"
+
+    if not gradlew_path.exists():
+        raise FileNotFoundError(
+            f"gradlew 스크립트를 찾을 수 없습니다: {gradlew_path}. "
+            "ANDROID_PROJECT_ROOT 설정을 확인하세요."
+        )
+
+    sdk_path = ensure_android_sdk_path()
+    logger.info(f"Android SDK path resolved to: {sdk_path}")
+
+    env = os.environ.copy()
+    env.setdefault("GRADLE_USER_HOME", DEFAULT_GRADLE_USER_HOME)
+
     try:
         process = await asyncio.create_subprocess_exec(
-            "./gradlew",
+            str(gradlew_path),
             "assembleDebug",
-            cwd="/app/kakao_theme_android",
+            cwd=str(project_root),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=env,
         )
 
         async def log_stream(stream, log_func):
@@ -415,9 +536,13 @@ async def build_apk():
         await process.wait()
 
         if process.returncode == 0:
-            apk_path = "/app/kakao_theme_android/build/outputs/apk/debug/ONO-theme.apk"
+            apk_path = project_root / "build/outputs/apk/debug/ONO-theme.apk"
+            if not apk_path.exists():
+                raise FileNotFoundError(
+                    f"APK 결과물을 찾을 수 없습니다: {apk_path}."
+                )
             logger.info("Build successful")
-            return apk_path
+            return str(apk_path)
         else:
             logger.error("Build failed")
             raise Exception("Build process failed")

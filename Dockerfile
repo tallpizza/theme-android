@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 ARG BASE_IMAGE=ghcr.io/cirruslabs/android-sdk:34
-FROM ${BASE_IMAGE}
+FROM --platform=linux/amd64 ${BASE_IMAGE}
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
@@ -18,7 +18,8 @@ ENV UV_LINK_MODE=copy \
     PATH="/app/.venv/bin:/root/.local/bin:$PATH" \
     UV_CACHE_DIR=/root/.cache/uv \
     GRADLE_USER_HOME=/root/.gradle \
-    ANDROID_HOME=/opt/android-sdk
+    ANDROID_HOME=/opt/android-sdk \
+    ANDROID_SDK_ROOT=/opt/android-sdk
 
 WORKDIR /app
 
@@ -29,7 +30,7 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
-RUN mkdir "$ANDROID_HOME/licenses" || true && \
+RUN mkdir -p "$ANDROID_HOME/licenses" && \
     echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-license"
 
 COPY kakao_theme_android/build.gradle kakao_theme_android/gradlew /app/kakao_theme_android/

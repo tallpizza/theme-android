@@ -52,6 +52,8 @@ async def create_theme(
     tabsChatsSelected: Optional[UploadFile] = File(None),
     tabsOpenChats: Optional[UploadFile] = File(None),
     tabsOpenChatsSelected: Optional[UploadFile] = File(None),
+    tabsNow: Optional[UploadFile] = File(None),
+    tabsNowSelected: Optional[UploadFile] = File(None),
     tabsShopping: Optional[UploadFile] = File(None),
     tabsShoppingSelected: Optional[UploadFile] = File(None),
     tabsMore: Optional[UploadFile] = File(None),
@@ -131,6 +133,9 @@ async def create_theme(
 
     await update_version_in_gradle()
 
+    open_chat_icon = tabsOpenChats or tabsNow
+    open_chat_icon_selected = tabsOpenChatsSelected or tabsNowSelected
+
     # 이미지 파일 저장
     file_names = [
         "commonIcoTheme.png",
@@ -141,6 +146,8 @@ async def create_theme(
         "theme_maintab_ico_chats_focused_image.png",
         "theme_maintab_ico_openchat_image.png",
         "theme_maintab_ico_openchat_focused_image.png",
+        "theme_maintab_ico_now_image.png",
+        "theme_maintab_ico_now_focused_image.png",
         "theme_maintab_ico_shopping_image.png",
         "theme_maintab_ico_shopping_focused_image.png",
         "theme_maintab_ico_more_image.png",
@@ -171,8 +178,10 @@ async def create_theme(
         tabsFrendsSelected,
         tabsChats,
         tabsChatsSelected,
-        tabsOpenChats,
-        tabsOpenChatsSelected,
+        open_chat_icon,
+        open_chat_icon_selected,
+        tabsNow,
+        tabsNowSelected,
         tabsShopping,
         tabsShoppingSelected,
         tabsMore,

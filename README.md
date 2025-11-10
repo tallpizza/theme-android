@@ -37,6 +37,8 @@ uv sync
 ## Docker 및 `uv.lock`
 
 `Dockerfile`은 `pyproject.toml`과 `uv.lock`을 기반으로 같은 의존성을 설치합니다.  
+기본 베이스 이미지는 ARM/AMD 양쪽을 지원하는 `ghcr.io/cirruslabs/android-sdk:34`이며,
+`docker build --build-arg BASE_IMAGE=...`로 교체할 수 있습니다.  
 의존성을 변경했다면 아래 명령으로 잠금 파일을 갱신하세요.
 
 ```bash
@@ -55,3 +57,14 @@ uv export --format requirements-txt > requirements.txt
 ```
 
 새로운 워크플로우에서는 `uv sync`와 `uv run` 사용을 권장합니다.
+
+## Gradle 성능 설정
+
+`kakao_theme_android/gradle.properties`에 Gradle 데몬, 병렬 빌드, 빌드 캐시, 구성 캐시가 기본으로 활성화돼 있습니다.  
+파일 감시가 컨테이너에서 불안정한 문제를 피하기 위해 `org.gradle.vfs.watch=false`가 설정돼 있으며 필요 시 조정하세요.
+
+## Docker 빌드 최적화
+
+Dockerfile은 BuildKit의 캐시 마운트를 사용해 `apt`, `uv`, Gradle 아티팩트를 재사용합니다.  
+`DOCKER_BUILDKIT=1 docker build -t android-theme:latest .`처럼 BuildKit을 활성화하면 이후 빌드가 훨씬 빨라집니다.  
+CI에서는 `--cache-to/--cache-from`(예: GitHub Actions용 `type=gha`) 옵션을 함께 사용하면 캐시를 공유할 수 있습니다.

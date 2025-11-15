@@ -286,7 +286,7 @@ async def create_theme(
 
     image_tasks = [
         (kakaoIcon, LAUNCHER_ICON_FILENAME),
-        (tabsBg, "theme_background_image.png"),
+        (tabsBg, "theme_maintab_cell_image.png"),
         (tabsFrends, "theme_maintab_ico_friends_image.png"),
         (tabsFrendsSelected, "theme_maintab_ico_friends_focused_image.png"),
         (tabsChats, "theme_maintab_ico_chats_image.png"),
@@ -434,6 +434,9 @@ async def persist_uploaded_images(
             continue
 
         content = await image_file.read()
+        # 동일한 UploadFile 객체를 여러 리소스에 재사용할 수 있으므로
+        # 포인터를 항상 되감아 후속 read에서도 전체 데이터를 읽을 수 있게 한다.
+        await image_file.seek(0)
         location = nine_patch_locations.get(filename)
         if location:
             content = create_nine_patch(content, location)
